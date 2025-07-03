@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user-dto';
 import { UpdateUserDto } from './dto/update-user-dto';
+import { NotFoundException } from '@nestjs/common';
+import { Roles } from './enums/role.enum';
 
 @Injectable() // decorator - adds metadata that this class can be managed by nest
 export class UsersService {
@@ -39,17 +41,28 @@ export class UsersService {
 
   findAll(role?: 'INTERN' | 'ENGINEER' | 'ADMIN') {
     if (role) {
-      return this.users.filter((user) => user.role === role);
+      const usersWithRoles = this.users.filter((user) => user.role === role);
+      if (usersWithRoles.length === 0)
+        throw new NotFoundException({
+          Message: 'User Role Not Found',
+          AvailableRoles: Object.values(Roles),
+        });
+      return usersWithRoles;
     }
     return this.users;
   }
 
   findOne(id: number) {
     const user = this.users.find((user) => user.id === id);
+
+    if (!user) {
+      throw new NotFoundException('User not found'); // instead of returning an empty response if user not exists
+    }
     return user;
   }
 
-  create(createUserDto: CreateUserDto) {      // or user
+  create(createUserDto: CreateUserDto) {
+    // or user
     const usersByHighestId = [...this.users].sort((a, b) => b.id - a.id); // Create an array of users sorted by ID
     const newUser = {
       id: usersByHighestId[0].id + 1,
@@ -60,10 +73,7 @@ export class UsersService {
     return newUser;
   }
 
-  update(
-    id: number,
-    updateUserDto: UpdateUserDto,
-  ) {
+  update(id: number, updateUserDto: UpdateUserDto) {
     this.users = this.users.map((user) => {
       if (user.id === id) {
         return { ...user, ...updateUserDto };
@@ -75,10 +85,10 @@ export class UsersService {
   }
 
   delete(id: number) {
-    const removedUser = this.findOne(id)
+    const removedUser = this.findOne(id);
 
-    this.users = this.users.filter(user => user.id !== id)
+    this.users = this.users.filter((user) => user.id !== id);
 
-    return removedUser
+    return removedUser;
   }
 }
